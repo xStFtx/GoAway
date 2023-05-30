@@ -1,117 +1,79 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"net"
-	"sync"
-	"time"
+	"os"
+	"strings"
 )
 
-type ScanResult struct {
-	IP    net.IP
-	Open  bool
-	Error error
+const (
+	ReverseEngineeringOption    = "1"
+	HeapAndBufferOverflowOption = "2"
+	ExitOption                  = "3"
+)
+
+func reverseEngineering() {
+	fmt.Println("Reverse Engineering functionality goes here.")
+	// Add your advanced reverse engineering code here
+	// Implement disassembly, debugging capabilities, code analysis, etc.
+	// You can use external libraries or tools like 'radare2', 'Capstone', or 'Ghidra'
+}
+
+func heapAndBufferOverflows() {
+	fmt.Println("Heap and Buffer Overflows functionality goes here.")
+	// Add your advanced heap and buffer overflow code here
+	// Simulate vulnerable programs, implement exploitation techniques, stack smashing, etc.
+	// Utilize techniques like shellcode injection, return-oriented programming (ROP), or format string vulnerabilities
+}
+
+func processUserChoice(choice string) bool {
+	switch choice {
+	case ReverseEngineeringOption:
+		reverseEngineering()
+	case HeapAndBufferOverflowOption:
+		heapAndBufferOverflows()
+	case ExitOption:
+		fmt.Println("Exiting...")
+		return false
+	default:
+		fmt.Println("Invalid choice. Please try again.")
+	}
+	return true
+}
+
+func displayMenu() {
+	fmt.Println("\nPlease select an option:")
+	fmt.Println("1. Reverse Engineering")
+	fmt.Println("2. Heap and Buffer Overflows")
+	fmt.Println("3. Exit")
+}
+
+func getUserChoice(reader *bufio.Reader) (string, error) {
+	fmt.Print("Enter your choice: ")
+	choice, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(choice), nil
 }
 
 func main() {
-	// Define the IP range to scan
-	ipRange := "192.168.0.1-10"
+	fmt.Println("Welcome to the Advanced Pentesting Tool!")
 
-	// Split the IP range into start and end IP addresses
-	startIP, endIP, err := parseIPRange(ipRange)
-	if err != nil {
-		fmt.Println("Invalid IP range:", err)
-		return
-	}
+	reader := bufio.NewReader(os.Stdin)
 
-	// Perform the IP scan
-	fmt.Println("Scanning IP range:", ipRange)
-	results := scanIPRange(startIP, endIP)
+	for {
+		displayMenu()
 
-	// Print the scan results
-	fmt.Println("\nScan Results:")
-	for _, result := range results {
-		if result.Error != nil {
-			fmt.Printf("Error scanning IP %s: %s\n", result.IP, result.Error)
-			continue
+		choice, err := getUserChoice(reader)
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			return
 		}
 
-		status := "Closed"
-		if result.Open {
-			status = "Open"
-		}
-		fmt.Printf("%s: %s\n", result.IP, status)
-	}
-}
-
-func parseIPRange(ipRange string) (net.IP, net.IP, error) {
-	ips := net.ParseIP(ipRange)
-	if ips != nil {
-		return ips, ips, nil
-	}
-
-	ip, ipNet, err := net.ParseCIDR(ipRange)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	startIP := ip.Mask(ipNet.Mask)
-	endIP := make(net.IP, len(startIP))
-	copy(endIP, startIP)
-	for i := len(endIP) - 1; i < len(endIP); i++ {
-		endIP[i] |= ^ipNet.Mask[i]
-	}
-
-	return startIP, endIP, nil
-}
-
-func scanIPRange(startIP, endIP net.IP) []*ScanResult {
-	var wg sync.WaitGroup
-	var mutex sync.Mutex
-	var results []*ScanResult
-
-	for ip := startIP; compareIP(ip, endIP) <= 0; incrementIP(ip) {
-		wg.Add(1)
-		go func(ip net.IP) {
-			defer wg.Done()
-			result := ScanResult{IP: ip}
-			if isPortOpen(ip, 80, time.Second) {
-				result.Open = true
-			}
-			mutex.Lock()
-			results = append(results, &result)
-			mutex.Unlock()
-		}(ip.To4())
-	}
-
-	wg.Wait()
-	return results
-}
-
-func compareIP(ip1, ip2 net.IP) int {
-	ip1 = ip1.To4()
-	ip2 = ip2.To4()
-	return bytesToUint(ip1) - bytesToUint(ip2)
-}
-
-func bytesToUint(ip net.IP) int {
-	return int(ip[0])<<24 | int(ip[1])<<16 | int(ip[2])<<8 | int(ip[3])
-}
-
-func incrementIP(ip net.IP) {
-	for i := len(ip) - 1; i >= 0; i-- {
-		ip[i]++
-		if ip[i] > 0 {
-			break
+		if !processUserChoice(choice) {
+			return
 		}
 	}
-}
-
-func isPortOpen(ip net.IP, port int, timeout time.Duration) bool {
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip.String(), port), timeout)
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
-	return true
 }
